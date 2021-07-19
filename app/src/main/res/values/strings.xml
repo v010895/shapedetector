@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">searchrectangle</string>
+    <string name="premission_message">Permission is requested</string>
+</resources>
