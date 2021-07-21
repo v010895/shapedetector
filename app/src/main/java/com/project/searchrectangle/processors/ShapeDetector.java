@@ -2,6 +2,7 @@ package com.project.searchrectangle.processors;
 
 import android.graphics.Bitmap;
 import android.graphics.ImageDecoder;
+import android.graphics.RectF;
 import android.media.Image;
 import android.util.Log;
 
@@ -34,21 +35,24 @@ import androidx.camera.core.ImageProxy;
 public class ShapeDetector implements ImageAnalysis.Analyzer {
   private static final boolean DEBUG = false;
   private int threshold = 100;
+  private int analyImageHeight = 640;
+  private int analyImageWidth = 480;
   private int counter = 0;
   private Listener listener;
-  private double metricHeight, metricWidth;
+  private double metricHeight, metricWidth,ratioX,ratioY;
 
   public ShapeDetector(double metricHeight, double metricWidth) {
     this.metricHeight = metricHeight;
     this.metricWidth = metricWidth;
+    this.ratioX = this.metricWidth / analyImageWidth;
+    this.ratioY = this.metricHeight/ analyImageHeight;
+
   }
 
   @Override
   public void analyze(@NonNull @NotNull ImageProxy image) {
-    Log.i("myDebug", "analyze");
-    double ratioY = metricHeight / image.getHeight();
-    double ratioX = metricWidth / image.getWidth();
-    List<String> test = new ArrayList<String>();
+    double ratioY = metricHeight / image.getWidth();
+    double ratioX = metricWidth / image.getHeight();
     ByteBuffer bufferY = image.getPlanes()[0].getBuffer();
     //create cv Mat
     Mat cvImage = new Mat(image.getHeight(), image.getWidth(), CvType.CV_8UC1, bufferY);
@@ -61,24 +65,18 @@ public class ShapeDetector implements ImageAnalysis.Analyzer {
     Mat hierarchy = new Mat();
     Imgproc.findContours(cannyOutput, contours, hierarchy, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE);
     Mat drawing = new Mat().zeros(cannyOutput.height(), cannyOutput.width(), CvType.CV_8UC3);
+    /*
     for (int i = 0; i < contours.size(); i++) {
       Scalar color = new Scalar(0, 255, 0);
       Imgproc.drawContours(drawing, contours, i, color, 2, Imgproc.LINE_8, hierarchy, 0);
     }
-    for(int i=0;i < contours.size();i++)
-    {
-      MatOfPoint2f approxCurve =  new MatOfPoint2f();
-      MatOfPoint2f contour2f = new MatOfPoint2f(contours.get(i).toArray());
-      double approxDistance = Imgproc.arcLength(contour2f,true) *0.02;
-      Imgproc.approxPolyDP(contour2f,approxCurve,approxDistance,true);
 
-      if(approxCurve.toArray().length == 4)
-      {
-        MatOfPoint points =  new MatOfPoint(approxCurve.toArray());
-        Rect rect = Imgproc.boundingRect(points);
-      }
-    }
+     */
+    ArrayList<RectF> rects = new ArrayList<>();
+    findRect(rects,contours);
+    saveDebugImage(rotateImage);
     //output ARGB_8888
+    /*
     int[] resultArray = new int[drawing.cols() * drawing.rows()];
     for (int i = 0; i < drawing.rows(); i++) {
       for (int j = 0; j < drawing.cols(); j++) {
@@ -86,11 +84,29 @@ public class ShapeDetector implements ImageAnalysis.Analyzer {
         resultArray[j + i * drawing.cols()] = (((int) array[0]) << 11 | ((int) array[1]) << 5 | ((int) array[2])) << 8;
       }
     }
+
     Bitmap result = Bitmap.createBitmap(resultArray, image.getHeight(), image.getWidth(), Bitmap.Config.RGB_565);
-    listener.onShapeDetect(result);
+    */
+    listener.onShapeDetect(rects);
     image.close();
   }
-
+  private void findRect(ArrayList<RectF> rects, List<MatOfPoint> contours)
+  {
+    for(int i=0;i<contours.size();i++)
+    {
+        MatOfPoint2f approxCurve = new MatOfPoint2f();
+        MatOfPoint2f contourPoints = new MatOfPoint2f(contours.get(i).toArray());
+        Imgproc.approxPolyDP(contourPoints,approxCurve,50,true);
+        if(approxCurve.toArray().length == 4)
+        {
+          MatOfPoint points = new MatOfPoint(approxCurve.toArray());
+          Rect rect = Imgproc.boundingRect(points);
+          RectF rectF = new RectF((float)(rect.tl().x * ratioX),(float)(rect.tl().y * ratioY),
+              (float)(rect.br().x*ratioX), (float)(rect.br().y*ratioY));
+          rects.add(rectF);
+        }
+    }
+  }
   private Mat rotateMat(Mat inputMat, int degree) {
     //rotate Image 90 degree
     Mat outputMat = new Mat();
@@ -125,6 +141,6 @@ public class ShapeDetector implements ImageAnalysis.Analyzer {
   }
 
   public interface Listener {
-    void onShapeDetect(Bitmap result);
+    void onShapeDetect(ArrayList<RectF> rects);
   }
 }

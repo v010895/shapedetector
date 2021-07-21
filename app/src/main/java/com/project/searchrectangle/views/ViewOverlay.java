@@ -4,11 +4,13 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.RectF;
 import android.util.AttributeSet;
 import android.view.View;
 
 import org.opencv.core.MatOfPoint;
 import org.opencv.core.Point;
+import org.opencv.core.Rect;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,13 +18,13 @@ import java.util.List;
 import androidx.annotation.Nullable;
 
 public class ViewOverlay extends View {
-  private ArrayList<Point> points = new ArrayList<>();
+  private ArrayList<RectF> rects = new ArrayList<>();
   private Paint paint;
 
   public ViewOverlay(Context context, @Nullable AttributeSet attrs) {
     super(context, attrs);
     paint = new Paint();
-    paint.setStrokeWidth(5.0f);
+    paint.setStrokeWidth(10.0f);
     paint.setStyle(Paint.Style.STROKE);
     paint.setColor(Color.GREEN);
   }
@@ -30,17 +32,17 @@ public class ViewOverlay extends View {
   @Override
   protected void onDraw(Canvas canvas) {
     super.onDraw(canvas);
-    for(Point point: points)
+    for(RectF rect: rects)
     {
-      canvas.drawPoint((float)point.x,(float)point.y,paint);
+      canvas.drawRect(rect,paint);
     }
 
   }
 
-  public void postPoints(List<Point> contours,double ratioX,double ratioY)
+  public void postPoints(ArrayList<RectF> rectangles)
   {
-    points.clear();
-    points.addAll(contours);
+    rects.clear();
+    rects.addAll(rectangles);
     invalidate();
   }
 }

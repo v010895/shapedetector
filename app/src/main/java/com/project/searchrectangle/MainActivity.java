@@ -22,8 +22,11 @@ import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.RectF;
 import android.os.Bundle;
+import android.util.DisplayMetrics;
 import android.util.Log;
+import android.view.Surface;
 import android.widget.Toast;
 
 import com.project.searchrectangle.databinding.ActivityMainBinding;
@@ -38,6 +41,7 @@ import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
 import org.opencv.core.Point;
+import org.opencv.core.Rect;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 
@@ -111,14 +115,32 @@ public class MainActivity extends AppCompatActivity {
         });
     mStartForResult.launch(PERMISSION_ARRAY);
   }
-
+  private int aspectRatio(int width, int height)
+  {
+      double previewRatio = (double)Math.max(width,height)/Math.min(width,height);
+      if(Math.abs(previewRatio-AspectRatio.RATIO_4_3) <= Math.abs(previewRatio-AspectRatio.RATIO_16_9))
+      {
+        return AspectRatio.RATIO_4_3;
+      }
+      return AspectRatio.RATIO_16_9;
+  }
   private void tryInitCamera() {
       if(cameraProvider !=null && arePermissionGrant())
       {
-
           Preview preview = new Preview.Builder()
               .setTargetAspectRatio(AspectRatio.RATIO_4_3)
               .build();
+
+          metricHeight = binding.preview.getHeight()*binding.preview.getScaleY();
+          metricWidth = binding.preview.getWidth()*binding.preview.getScaleX();
+          int rotation = binding.preview.getDisplay().getRotation();
+          if(rotation == Surface.ROTATION_90 || rotation == Surface.ROTATION_270)
+          {
+            double temp = metricWidth;
+            metricWidth = metricHeight;
+            metricHeight = temp;
+          }
+          Log.i(TAG,"Screen metric "+ metricHeight + " x " + metricWidth);
           preview.setSurfaceProvider(binding.preview.getSurfaceProvider());
           int lenFacing = getCameraLenFacing(cameraProvider);
           CameraSelector selector = new CameraSelector.Builder()
@@ -145,13 +167,8 @@ public class MainActivity extends AppCompatActivity {
     ShapeDetector detector = new ShapeDetector(metricHeight,metricWidth);
     ShapeDetector.Listener listener = new ShapeDetector.Listener() {
       @Override
-      public void onShapeDetect(Bitmap resultImage) {
-          runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                binding.display.setImageBitmap(resultImage);
-            }
-          });
+      public void onShapeDetect(ArrayList<RectF> rects) {
+          binding.overlay.postPoints(rects);
       }
     };
     detector.setListener(listener);
