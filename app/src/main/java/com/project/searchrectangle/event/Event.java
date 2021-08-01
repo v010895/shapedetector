@@ -13,6 +13,7 @@ public class Event<T> {
       return null;
     }
     else{
+      isHandle = true;
       return content;
     }
   }

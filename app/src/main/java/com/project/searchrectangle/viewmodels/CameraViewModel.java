@@ -3,6 +3,7 @@ package com.project.searchrectangle.viewmodels;
 import android.app.Application;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import com.project.searchrectangle.event.Event;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
@@ -17,7 +18,7 @@ import androidx.lifecycle.MutableLiveData;
 public class CameraViewModel extends AndroidViewModel {
 
   public MutableLiveData<ProcessCameraProvider> cameraProvider = new MutableLiveData();
-
+  public MutableLiveData<Event<Boolean>> initFinish = new MutableLiveData<>();
   public CameraViewModel(Application application)
   {
        super(application);
@@ -38,5 +39,9 @@ public class CameraViewModel extends AndroidViewModel {
           }
         }
       }, ContextCompat.getMainExecutor(application));
+  }
+  public void setInitFinish(boolean isFinish)
+  {
+    initFinish.postValue(new Event<Boolean>(isFinish));
   }
 }

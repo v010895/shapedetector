@@ -6,6 +6,7 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.WorkerThread;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.AppCompatSeekBar;
 import androidx.camera.core.AspectRatio;
 import androidx.camera.core.CameraInfoUnavailableException;
 import androidx.camera.core.CameraSelector;
@@ -27,6 +28,8 @@ import android.os.Bundle;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Surface;
+import android.view.View;
+import android.widget.SeekBar;
 import android.widget.Toast;
 
 import com.project.searchrectangle.databinding.ActivityMainBinding;
@@ -55,7 +58,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements SeekBar.OnSeekBarChangeListener {
   private static final String[] PERMISSION_ARRAY = {Manifest.permission.CAMERA,Manifest.permission.WRITE_EXTERNAL_STORAGE};
   private static final String TAG = "myDebug";
   private CameraViewModel cameraViewModel;
@@ -65,6 +68,7 @@ public class MainActivity extends AppCompatActivity {
   private ExecutorService executor = Executors.newSingleThreadExecutor();
   private double metricHeight = 0.0;
   private double metricWidth = 0.0;
+  private ShapeDetector detector;
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
@@ -76,6 +80,16 @@ public class MainActivity extends AppCompatActivity {
       cameraProvider = processCameraProvider;
       tryInitCamera();
     });
+    cameraViewModel.initFinish.observe(this,event->{
+      boolean isFinish = event.getContentIfNotHandle();
+      if(isFinish)
+      {
+        binding.cannyThresholdSeekBar.setVisibility(View.VISIBLE);
+        binding.epsilonSeekBar.setVisibility(View.VISIBLE);
+      }
+    });
+    binding.epsilonSeekBar.setOnSeekBarChangeListener(this);
+    binding.cannyThresholdSeekBar.setOnSeekBarChangeListener(this);
     requestPermissions();
 
     
@@ -160,11 +174,11 @@ public class MainActivity extends AppCompatActivity {
           {
             Log.e(TAG,"Camera exception: "+exception.getMessage());
           }
-
+          cameraViewModel.setInitFinish(true);
       }
   }
   private ImageAnalysis.Analyzer setupDetector(){
-    ShapeDetector detector = new ShapeDetector(metricHeight,metricWidth);
+    detector = new ShapeDetector(metricHeight,metricWidth);
     ShapeDetector.Listener listener = new ShapeDetector.Listener() {
       @Override
       public void onShapeDetect(ArrayList<RectF> rects) {
@@ -204,4 +218,28 @@ public class MainActivity extends AppCompatActivity {
     return isGrant;
   }
 
+  @Override
+  public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+    switch(seekBar.getId())
+    {
+      case R.id.cannyThresholdSeekBar:{
+          detector.setCannyThreshold(seekBar.getProgress());
+          break;
+      }
+      case R.id.epsilonSeekBar:{
+        detector.setEpsilon(seekBar.getProgress());
+        break;
+      }
+    }
+  }
+
+  @Override
+  public void onStartTrackingTouch(SeekBar seekBar) {
+
+  }
+
+  @Override
+  public void onStopTrackingTouch(SeekBar seekBar) {
+
+  }
 }

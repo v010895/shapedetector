@@ -34,33 +34,40 @@ import androidx.camera.core.ImageProxy;
 
 public class ShapeDetector implements ImageAnalysis.Analyzer {
   private static final boolean DEBUG = false;
-  private int threshold = 100;
-  private int analyImageHeight = 640;
-  private int analyImageWidth = 480;
+  private int analyImageHeight;
+  private int analyImageWidth;
   private int counter = 0;
   private Listener listener;
   private double metricHeight, metricWidth,ratioX,ratioY;
+  private int epsilon=20;
+  private int cannyThreshold=100;
 
   public ShapeDetector(double metricHeight, double metricWidth) {
     this.metricHeight = metricHeight;
     this.metricWidth = metricWidth;
-    this.ratioX = this.metricWidth / analyImageWidth;
-    this.ratioY = this.metricHeight/ analyImageHeight;
 
   }
 
   @Override
   public void analyze(@NonNull @NotNull ImageProxy image) {
-    double ratioY = metricHeight / image.getWidth();
-    double ratioX = metricWidth / image.getHeight();
+
     ByteBuffer bufferY = image.getPlanes()[0].getBuffer();
     //create cv Mat
+    int rotation = image.getImageInfo().getRotationDegrees();
+    int imageWidth = (rotation == 90 || rotation == 270) ? image.getHeight():image.getWidth();
+    int imageHeight = (rotation == 90 || rotation == 270)? image.getWidth():image.getHeight();
+    ratioX = this.metricWidth / imageWidth;
+    ratioY = this.metricHeight / imageHeight;
     Mat cvImage = new Mat(image.getHeight(), image.getWidth(), CvType.CV_8UC1, bufferY);
-    Mat rotateImage = rotateMat(cvImage, 90);
+    Mat rotateImage;
+    if(rotation == 90)
+      rotateImage = rotateMat(cvImage, 90);
+    else
+      rotateImage = cvImage;
     //Imgproc.warpAffine(cvImage,cvImageDst,rotateMat,cvImageDst.size());
     Imgproc.GaussianBlur(rotateImage, rotateImage, new Size(5, 5), 0.0);
     Mat cannyOutput = new Mat();
-    Imgproc.Canny(rotateImage, cannyOutput, threshold, threshold * 2);
+    Imgproc.Canny(rotateImage, cannyOutput, cannyThreshold, cannyThreshold * 2);
     List<MatOfPoint> contours = new ArrayList<>();
     Mat hierarchy = new Mat();
     Imgproc.findContours(cannyOutput, contours, hierarchy, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE);
@@ -96,7 +103,7 @@ public class ShapeDetector implements ImageAnalysis.Analyzer {
     {
         MatOfPoint2f approxCurve = new MatOfPoint2f();
         MatOfPoint2f contourPoints = new MatOfPoint2f(contours.get(i).toArray());
-        Imgproc.approxPolyDP(contourPoints,approxCurve,50,true);
+        Imgproc.approxPolyDP(contourPoints,approxCurve,epsilon,true);
         if(approxCurve.toArray().length == 4)
         {
           MatOfPoint points = new MatOfPoint(approxCurve.toArray());
@@ -135,7 +142,14 @@ public class ShapeDetector implements ImageAnalysis.Analyzer {
     Imgcodecs.imwrite(fileName, saveImage);
     counter++;
   }
-
+  public void setEpsilon(int epsilon)
+  {
+    this.epsilon = epsilon;
+  }
+  public void setCannyThreshold(int threshold)
+  {
+    this.cannyThreshold = threshold;
+  }
   public void setListener(Listener listener) {
     this.listener = listener;
   }
